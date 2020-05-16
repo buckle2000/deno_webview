@@ -26,14 +26,17 @@ thread_local! {
 #[no_mangle]
 pub fn deno_plugin_init(interface: &mut dyn Interface) {
     interface.register_op("webview_new", op_webview_new);
+    // interface.register_op("webview_free", op_webview_free);
     interface.register_op("webview_exit", op_webview_exit);
     interface.register_op("webview_eval", op_webview_eval);
+    // interface.register_op("webview_dispatch", op_webview_dispatch);
     interface.register_op("webview_set_color", op_webview_set_color);
     interface.register_op("webview_set_title", op_webview_set_title);
     interface.register_op("webview_set_fullscreen", op_webview_set_fullscreen);
     interface.register_op("webview_loop", op_webview_loop);
-    interface.register_op("webview_run", op_webview_run);
+    interface.register_op("webview_get_user_data", op_webview_get_user_data);
 }
+
 
 #[derive(Serialize)]
 struct WebViewResponse<T> {
@@ -361,25 +364,25 @@ fn op_webview_loop(
 }
 
 #[derive(Deserialize)]
-struct WebViewRunParams {
+struct WebViewGetUserDataParams {
     id: u32,
 }
 
 #[derive(Serialize)]
-struct WebViewRunResult {}
+struct WebViewGetUserDataResult {}
 
-fn op_webview_run(
+fn op_webview_get_user_data(
     _interface: &mut dyn Interface,
     data: &[u8],
     _zero_copy: Option<ZeroCopyBuf>,
 ) -> Op {
     unsafe {
-        let mut response: WebViewResponse<WebViewRunResult> = WebViewResponse {
+        let mut response: WebViewResponse<WebViewGetUserDataResult> = WebViewResponse {
             err: None,
             ok: None,
         };
 
-        let params: WebViewRunParams = serde_json::from_slice(data).unwrap();
+        let params: WebViewGetUserDataParams = serde_json::from_slice(data).unwrap();
 
         let fut = async move {
             INSTANCE_MAP.with(|cell| {
@@ -389,16 +392,7 @@ fn op_webview_run(
                     response.err = Some(format!("Could not find instance of id {}", &params.id))
                 } else {
                     let instance: *mut CWebView = *instance_map.get(&params.id).unwrap();
-
-                    loop {
-                        match webview_loop(instance, 1) {
-                            0 => (),
-                            _ => {
-                                response.ok = Some(WebViewRunResult {});
-                                break;
-                            }
-                        }
-                    }
+                    response.ok = Some(WebViewGetUserDataResult {})
                 }
             });
 
